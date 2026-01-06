@@ -10,18 +10,66 @@ app.get("/health", (_req, res) => {
   res.json({ ok: true });
 });
 
+type SenderConfig = {
+  user: string;
+  pass: string;
+  from: string;
+};
+
+function getSender(fromKey: string): SenderConfig | null {
+  switch (fromKey) {
+    case "delta":
+      if (
+        process.env.DELTA_SMTP_USER &&
+        process.env.DELTA_SMTP_PASS &&
+        process.env.DELTA_MAIL_FROM
+      ) {
+        return {
+          user: process.env.DELTA_SMTP_USER,
+          pass: process.env.DELTA_SMTP_PASS,
+          from: process.env.DELTA_MAIL_FROM,
+        };
+      }
+      return null;
+
+    case "randburg":
+      if (
+        process.env.RANDBURG_SMTP_USER &&
+        process.env.RANDBURG_SMTP_PASS &&
+        process.env.RANDBURG_MAIL_FROM
+      ) {
+        return {
+          user: process.env.RANDBURG_SMTP_USER,
+          pass: process.env.RANDBURG_SMTP_PASS,
+          from: process.env.RANDBURG_MAIL_FROM,
+        };
+      }
+      return null;
+
+    default:
+      return null;
+  }
+}
+
 app.post("/send", async (req, res) => {
   try {
-    // simple auth guard
+    // auth guard
     const token = req.header("authorization")?.replace("Bearer ", "");
     if (!process.env.MAILER_TOKEN || token !== process.env.MAILER_TOKEN) {
       return res.status(401).json({ ok: false, error: "Unauthorized" });
     }
 
-    const { to, subject, text, html } = req.body;
+    const { fromKey, to, subject, text, html } = req.body;
 
-    if (!to || !subject || (!text && !html)) {
+    if (!fromKey || !to || !subject || (!text && !html)) {
       return res.status(400).json({ ok: false, error: "Missing fields" });
+    }
+
+    const sender = getSender(fromKey);
+    if (!sender) {
+      return res
+        .status(400)
+        .json({ ok: false, error: "Invalid fromKey" });
     }
 
     const transporter = nodemailer.createTransport({
@@ -29,17 +77,17 @@ app.post("/send", async (req, res) => {
       port: Number(process.env.SMTP_PORT || 587),
       secure: String(process.env.SMTP_SECURE || "false") === "true",
       auth: {
-        user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASS
-      }
+        user: sender.user,
+        pass: sender.pass,
+      },
     });
 
     await transporter.sendMail({
-      from: process.env.MAIL_FROM,
+      from: sender.from,
       to,
       subject,
       text,
-      html
+      html,
     });
 
     res.json({ ok: true });
