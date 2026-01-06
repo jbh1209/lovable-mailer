@@ -76,9 +76,10 @@ const transporter = nodemailer.createTransport({
   host: process.env.SMTP_HOST,
   port: Number(process.env.SMTP_PORT || 587),
   secure: String(process.env.SMTP_SECURE || "false") === "true",
-  requireTLS: true, // 👈 add this
-  auth: { user: sender.user, pass: sender.pass }
+  requireTLS: true,
+  auth: { user: sender.user, pass: sender.pass },
 });
+
 
 
     await transporter.sendMail({
