@@ -78,7 +78,12 @@ const transporter = nodemailer.createTransport({
   secure: String(process.env.SMTP_SECURE || "false") === "true",
   requireTLS: true,
   auth: { user: sender.user, pass: sender.pass },
+
+  connectionTimeout: 20000,
+  greetingTimeout: 20000,
+  socketTimeout: 20000,
 });
+
 
 
 
@@ -92,7 +97,7 @@ const transporter = nodemailer.createTransport({
 
     res.json({ ok: true });
   } catch (err: any) {
-    console.error(err);
+    console.error("Send failed:",err);
     res.status(500).json({ ok: false, error: err?.message ?? "Send failed" });
   }
 });
